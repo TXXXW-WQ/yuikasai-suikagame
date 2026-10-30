@@ -1,0 +1,710 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>RPG風顔写真スイカゲーム</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+        body {
+            margin: 0;
+            padding: 0;
+            background: #f7f9fc;
+            font-family: 'Hiragino Kaku Gothic ProN', 'Meiryo', sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            overflow: hidden;
+            color: #333;
+        }
+        #game-container {
+            width: 100%;
+            max-width: 420px;
+            height: 100%;
+            max-height: 750px;
+            background: #ffffff;
+            border: 4px solid #a29bfe;
+            border-radius: 16px;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            box-shadow: 0 10px 25px rgba(162, 155, 254, 0.3);
+        }
+        .rpg-header {
+            background: linear-gradient(135deg, #a29bfe, #6c5ce7);
+            color: white;
+            padding: 8px 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-top-left-radius: 12px;
+            border-top-right-radius: 12px;
+            border-bottom: 3px solid #5d4eaf;
+            z-index: 2;
+        }
+        .rpg-panel {
+            background: rgba(255, 255, 255, 0.3);
+            padding: 4px 10px;
+            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.6);
+            font-size: 13px;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        
+        .help-btn {
+            background: #ffeaa7;
+            color: #d63031;
+            border: 2px solid #fdcb6e;
+            border-radius: 20px;
+            padding: 3px 10px;
+            font-size: 12px;
+            font-weight: bold;
+            cursor: pointer;
+            box-shadow: 0 2px 0 #e1b12c;
+            transition: transform 0.1s;
+        }
+        .help-btn:active {
+            transform: translateY(2px);
+            box-shadow: 0 0 0 #e1b12c;
+        }
+
+        #canvas-wrapper {
+            flex: 1;
+            position: relative;
+            background: #fffdf9;
+            overflow: hidden;
+            touch-action: none; /* スマホでのスクロール防止 */
+            cursor: pointer;
+        }
+        canvas#gameCanvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+
+        /* モーダル（ポップアップ）共通スタイル */
+        .overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.65);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            z-index: 10;
+        }
+        
+        /* 進化の輪 モーダル専用コンテンツ */
+        .modal-card {
+            background: #ffffff;
+            color: #333;
+            width: 88%;
+            max-width: 360px;
+            border-radius: 16px;
+            border: 3px solid #a29bfe;
+            padding: 16px;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.3);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .modal-title {
+            font-size: 16px;
+            font-weight: bold;
+            color: #6c5ce7;
+            margin-bottom: 12px;
+            text-align: center;
+        }
+        .evo-grid {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            align-items: center;
+            gap: 6px;
+            max-height: 380px;
+            overflow-y: auto;
+            padding: 8px 4px;
+        }
+        .evo-grid-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background: #f0edff;
+            padding: 6px;
+            border-radius: 10px;
+            border: 1px solid #dcd6f7;
+            width: 60px;
+        }
+        .evo-grid-canvas {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: #fff;
+            border: 1.5px solid #a29bfe;
+        }
+        .evo-level-text {
+            font-size: 10px;
+            font-weight: bold;
+            color: #6c5ce7;
+            margin-top: 4px;
+        }
+
+        .rpg-button {
+            background: linear-gradient(180deg, #ff7675, #d63031);
+            color: white;
+            border: 2px solid #b71540;
+            padding: 10px 24px;
+            font-size: 16px;
+            font-weight: bold;
+            border-radius: 12px;
+            cursor: pointer;
+            box-shadow: 0 4px 0 #b71540;
+            margin-top: 14px;
+        }
+        .rpg-button:active {
+            transform: translateY(2px);
+            box-shadow: 0 2px 0 #b71540;
+        }
+        .hidden {
+            display: none !important;
+        }
+    </style>
+</head>
+<body>
+
+<div id="game-container">
+    <div class="rpg-header">
+        <div class="rpg-panel">SCORE: <span id="score">0</span></div>
+        <div class="rpg-panel">NEXT: <canvas id="next-canvas" width="30" height="30" style="vertical-align: middle; border-radius: 50%; background: #fff;"></canvas></div>
+        <!-- 3. ？ 進化の輪ボタン -->
+        <button class="help-btn" id="open-evo-modal">？ 進化の輪</button>
+    </div>
+
+    <div id="canvas-wrapper">
+        <canvas id="gameCanvas"></canvas>
+
+        <!-- スタート画面 -->
+        <div id="start-screen" class="overlay">
+            <h2 style="color: #ffeaa7; text-shadow: 2px 2px #d63031; margin-bottom: 10px;">顔写真スイカゲーム</h2>
+            <p style="font-size: 14px; margin-bottom: 20px; text-align: center; padding: 0 20px;">同じ顔をあわせて大きくしよう！<br>赤いラインを越えるとゲームオーバー！</p>
+            <button class="rpg-button" id="start-btn">ゲームスタート</button>
+        </div>
+
+        <!-- ゲームオーバー画面 -->
+        <div id="gameover-screen" class="overlay hidden">
+            <h2 style="color: #ff6b6b; text-shadow: 2px 2px #c92a2a;">GAME OVER</h2>
+            <p style="font-size: 16px; margin-bottom: 15px;">スコア: <span id="final-score">0</span></p>
+            <button class="rpg-button" id="restart-btn">もう一度プレイ</button>
+        </div>
+
+        <!-- 4. 進化の輪 詳細モーダル -->
+        <div id="evo-modal" class="overlay hidden">
+            <div class="modal-card">
+                <div class="modal-title">✨ 顔の進化順（全10段階）</div>
+                <div class="evo-grid" id="modal-evo-grid"></div>
+                <button class="rpg-button" id="close-evo-modal" style="padding: 8px 20px; font-size: 14px;">閉じる</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // --- 1. Web Audio API による効果音ジェネレーター ---
+    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+    let audioCtx = null;
+
+    function initAudio() {
+        if (!audioCtx) {
+            audioCtx = new AudioCtx();
+        }
+    }
+
+    // ドロップ音（ポンっという低音）
+    function playDropSound() {
+        if (!audioCtx) return;
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(280, audioCtx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(110, audioCtx.currentTime + 0.12);
+        gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.12);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.12);
+    }
+
+    // 進化・合体音（ピコーンと弾ける高音）
+    function playMergeSound(level) {
+        if (!audioCtx) return;
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        const baseFreq = 400 + (level * 60);
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(baseFreq, audioCtx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(baseFreq * 1.8, audioCtx.currentTime + 0.18);
+        gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.18);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.18);
+    }
+
+    // --- ゲーム設定データ ---
+    const FRUITS_DATA = [
+        { radius: 20, score: 2, color: '#ff7675', zoom: 1.5, offsetY: 0.0 },
+        { radius: 28, score: 4, color: '#74b9ff', zoom: 1.5, offsetY: 0.0 },
+        { radius: 36, score: 8, color: '#55efc4', zoom: 1.5, offsetY: 0.0 },
+        { radius: 46, score: 16, color: '#ffeaa7', zoom: 1.5, offsetY: 0.0 },
+        { radius: 58, score: 32, color: '#a29bfe', zoom: 1.5, offsetY: 0.0 },
+        { radius: 72, score: 64, color: '#fd79a8', zoom: 1.5, offsetY: 0.0 },
+        { radius: 88, score: 128, color: '#e17055', zoom: 1.5, offsetY: 0.0 },
+        { radius: 106, score: 256, color: '#00b894', zoom: 1.5, offsetY: 0.0 },
+        { radius: 124, score: 512, color: '#0984e3', zoom: 1.5, offsetY: 0.0 },
+        { radius: 142, score: 1024, color: '#6c5ce7', zoom: 1.5, offsetY: 0.0 }
+    ];
+
+    const imageFiles = [
+        'S__41934891.jpg', 'S__41934892.jpg', 'S__41934893.jpg',
+        'S__41934894.jpg', 'S__41934895.jpg', 'S__41934896.jpg',
+        'S__41934897.jpg', 'S__41934898.jpg', 'S__103677957.jpg', 'S__141426692.jpg'
+    ];
+
+    let loadedImages = [];
+    imageFiles.forEach((file, index) => {
+        const img = new Image();
+        img.src = file;
+        img.onload = () => { loadedImages[index] = img; };
+        img.onerror = () => { loadedImages[index] = null; };
+    });
+
+    let currentScore = 0;
+    let balls = [];
+    let currentFruitIndex = 0;
+    let nextFruitIndex = 0;
+
+    let currentDropX = 180;
+    let isPlaying = false;
+    let dropEnabled = true;
+    let isDragging = false; // タッチ/ドラッグ追従用
+    let animationFrameId = null;
+    let gameOverCounter = 0;
+
+    const canvasWrapper = document.getElementById('canvas-wrapper');
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+
+    const basket = {
+        left: 20,
+        right: 340,
+        top: 60,
+        bottom: 580
+    };
+
+    function initGame() {
+        initAudio();
+        document.getElementById('start-screen').classList.add('hidden');
+        document.getElementById('gameover-screen').classList.add('hidden');
+        
+        currentScore = 0;
+        document.getElementById('score').innerText = currentScore;
+        balls = [];
+        isPlaying = true;
+        dropEnabled = true;
+        gameOverCounter = 0;
+
+        const width = canvasWrapper.clientWidth || 360;
+        const height = canvasWrapper.clientHeight || 600;
+        canvas.width = width;
+        canvas.height = height;
+
+        basket.left = 18;
+        basket.right = width - 18;
+        basket.bottom = height - 15;
+        basket.top = 55;
+
+        currentDropX = width / 2;
+
+        currentFruitIndex = Math.floor(Math.random() * 4);
+        nextFruitIndex = Math.floor(Math.random() * 4);
+        updateNextPreview();
+
+        if (animationFrameId) cancelAnimationFrame(animationFrameId);
+        gameLoop();
+    }
+
+    function updateNextPreview() {
+        const nextCanvas = document.getElementById('next-canvas');
+        const nCtx = nextCanvas.getContext('2d');
+        nCtx.clearRect(0, 0, 30, 30);
+        
+        nCtx.save();
+        nCtx.beginPath();
+        nCtx.arc(15, 15, 14, 0, Math.PI * 2);
+        nCtx.clip();
+
+        if (loadedImages[nextFruitIndex] && loadedImages[nextFruitIndex].complete && loadedImages[nextFruitIndex].naturalWidth > 0) {
+            const config = FRUITS_DATA[nextFruitIndex];
+            const size = 30 * config.zoom;
+            nCtx.drawImage(loadedImages[nextFruitIndex], 15 - size/2, 15 - size/2 - (30 * config.offsetY), size, size);
+        } else {
+            nCtx.fillStyle = FRUITS_DATA[nextFruitIndex].color;
+            nCtx.fill();
+        }
+        nCtx.restore();
+    }
+
+    function gameLoop() {
+        if (!isPlaying) return;
+
+        updatePhysics();
+        updatePhysics();
+
+        renderGame();
+
+        animationFrameId = requestAnimationFrame(gameLoop);
+    }
+
+    function updatePhysics() {
+        const gravity = 0.25;
+        const bounce = 0.1;
+        const friction = 0.96;
+
+        for (let i = 0; i < balls.length; i++) {
+            let b = balls[i];
+            b.vy += gravity;
+            b.vx *= friction;
+            b.vy *= friction;
+            b.x += b.vx;
+            b.y += b.vy;
+
+            if (b.x - b.radius < basket.left) {
+                b.x = basket.left + b.radius;
+                if (b.vx < 0) b.vx = -b.vx * bounce;
+            }
+            if (b.x + b.radius > basket.right) {
+                b.x = basket.right - b.radius;
+                if (b.vx > 0) b.vx = -b.vx * bounce;
+            }
+            if (b.y + b.radius > basket.bottom) {
+                b.y = basket.bottom - b.radius;
+                if (b.vy > 0) b.vy = -b.vy * bounce;
+            }
+        }
+
+        for (let i = 0; i < balls.length; i++) {
+            for (let j = i + 1; j < balls.length; j++) {
+                let b1 = balls[i];
+                let b2 = balls[j];
+                let dx = b2.x - b1.x;
+                let dy = b2.y - b1.y;
+                let dist = Math.sqrt(dx * dx + dy * dy);
+                let minDist = b1.radius + b2.radius;
+
+                if (dist < minDist) {
+                    if (b1.fruitIndex === b2.fruitIndex && b1.fruitIndex < FRUITS_DATA.length - 1) {
+                        let newIndex = b1.fruitIndex + 1;
+                        let midX = (b1.x + b2.x) / 2;
+                        let midY = (b1.y + b2.y) / 2;
+
+                        balls.splice(j, 1);
+                        balls.splice(i, 1);
+
+                        balls.push({
+                            x: midX,
+                            y: midY,
+                            vx: 0,
+                            vy: 0,
+                            radius: FRUITS_DATA[newIndex].radius,
+                            fruitIndex: newIndex
+                        });
+
+                        playMergeSound(newIndex); // 進化効果音
+
+                        currentScore += (b1.fruitIndex + 1) * 4;
+                        document.getElementById('score').innerText = currentScore;
+                        return;
+                    }
+
+                    let overlap = minDist - dist;
+                    let nx = dx / (dist || 0.001);
+                    let ny = dy / (dist || 0.001);
+
+                    b1.x -= nx * overlap * 0.5;
+                    b1.y -= ny * overlap * 0.5;
+                    b2.x += nx * overlap * 0.5;
+                    b2.y += ny * overlap * 0.5;
+
+                    if (b1.x - b1.radius < basket.left) b1.x = basket.left + b1.radius;
+                    if (b1.x + b1.radius > basket.right) b1.x = basket.right - b1.radius;
+                    if (b2.x - b2.radius < basket.left) b2.x = basket.left + b2.radius;
+                    if (b2.x + b2.radius > basket.right) b2.x = basket.right - b2.radius;
+
+                    let k = b1.vx - b2.vx;
+                    let p = 2 * (nx * k + ny * (b1.vy - b2.vy)) / 2;
+                    b1.vx -= p * nx * 0.5;
+                    b1.vy -= p * ny * 0.5;
+                    b2.vx += p * nx * 0.5;
+                    b2.vy += p * ny * 0.5;
+                }
+            }
+        }
+
+        // ゲームオーバー判定
+        let overLine = false;
+        for (let b of balls) {
+            if ((b.y - b.radius) < basket.top && b.y > basket.top - 40) {
+                if (Math.abs(b.vy) < 1.0) {
+                    overLine = true;
+                    break;
+                }
+            }
+        }
+
+        if (overLine) {
+            gameOverCounter++;
+            if (gameOverCounter > 30) {
+                triggerGameOver();
+            }
+        } else {
+            gameOverCounter = 0;
+        }
+    }
+
+    function renderGame() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        // 1. パステル調のタンク（背景）
+        ctx.fillStyle = 'rgba(255, 248, 240, 0.9)';
+        ctx.fillRect(basket.left, basket.top, basket.right - basket.left, basket.bottom - basket.top);
+
+        // 2. タンクの枠線
+        ctx.strokeStyle = '#ffeaa7';
+        ctx.lineWidth = 6;
+        ctx.strokeRect(basket.left, basket.top, basket.right - basket.left, basket.bottom - basket.top);
+
+        // 3. 赤い点線ライン（ゲームオーバーの基準）
+        ctx.beginPath();
+        ctx.setLineDash([8, 6]);
+        ctx.moveTo(basket.left, basket.top);
+        ctx.lineTo(basket.right, basket.top);
+        ctx.lineWidth = 6;
+        ctx.strokeStyle = '#ff3838';
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        // 4. 手元（ドロップ準備中）のボールとガイドライン
+        const previewRadius = FRUITS_DATA[currentFruitIndex].radius;
+        let pX = currentDropX;
+        if (pX < basket.left + previewRadius) pX = basket.left + previewRadius;
+        if (pX > basket.right - previewRadius) pX = basket.right - previewRadius;
+
+        const dropY = 25;
+
+        ctx.beginPath();
+        ctx.setLineDash([4, 4]);
+        ctx.moveTo(pX, dropY);
+        ctx.lineTo(pX, basket.top);
+        ctx.lineWidth = 1.5;
+        ctx.strokeStyle = 'rgba(162, 155, 254, 0.6)';
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        const config = FRUITS_DATA[currentFruitIndex];
+        const img = loadedImages[currentFruitIndex];
+
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(pX, dropY, previewRadius, 0, Math.PI * 2);
+        ctx.clip();
+
+        if (img && img.complete && img.naturalWidth > 0) {
+            const diameter = previewRadius * 2;
+            const drawSize = diameter * config.zoom;
+            const drawX = pX - drawSize / 2;
+            const drawY = dropY - drawSize / 2 - (diameter * config.offsetY);
+            ctx.drawImage(img, drawX, drawY, drawSize, drawSize);
+        } else {
+            ctx.fillStyle = config.color;
+            ctx.fill();
+        }
+        ctx.restore();
+
+        ctx.beginPath();
+        ctx.arc(pX, dropY, previewRadius, 0, Math.PI * 2);
+        ctx.lineWidth = 2;
+        ctx.strokeStyle = '#a29bfe';
+        ctx.stroke();
+
+        // 5. カゴの中のボールを描画
+        balls.forEach(b => {
+            const bConfig = FRUITS_DATA[b.fruitIndex];
+            const bImg = loadedImages[b.fruitIndex];
+
+            ctx.save();
+            ctx.beginPath();
+            ctx.arc(b.x, b.y, b.radius, 0, Math.PI * 2);
+            ctx.clip();
+
+            if (bImg && bImg.complete && bImg.naturalWidth > 0) {
+                const diameter = b.radius * 2;
+                const drawSize = diameter * bConfig.zoom;
+                const drawX = b.x - drawSize / 2;
+                const drawY = b.y - drawSize / 2 - (diameter * bConfig.offsetY);
+                ctx.drawImage(bImg, drawX, drawY, drawSize, drawSize);
+            } else {
+                ctx.fillStyle = bConfig.color;
+                ctx.fill();
+                ctx.fillStyle = '#ffffff';
+                ctx.font = 'bold ' + Math.max(12, b.radius / 2) + 'px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText('Lv.' + (b.fruitIndex + 1), b.x, b.y);
+            }
+            ctx.restore();
+
+            ctx.beginPath();
+            ctx.arc(b.x, b.y, b.radius, 0, Math.PI * 2);
+            ctx.lineWidth = 3;
+            ctx.strokeStyle = '#a29bfe';
+            ctx.stroke();
+        });
+    }
+
+    // --- 2. スマホ操作性の向上（指のドラッグ追従＆離して落とす） ---
+    function updatePosition(clientX) {
+        const rect = canvas.getBoundingClientRect();
+        currentDropX = clientX - rect.left;
+    }
+
+    function handlePointerStart(e) {
+        if (!isPlaying || !dropEnabled) return;
+        initAudio();
+        isDragging = true;
+        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+        updatePosition(clientX);
+    }
+
+    function handlePointerMove(e) {
+        if (!isPlaying || !isDragging) return;
+        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+        updatePosition(clientX);
+    }
+
+    function handlePointerEnd() {
+        if (!isPlaying || !isDragging || !dropEnabled) return;
+        isDragging = false;
+        dropBall();
+    }
+
+    function dropBall() {
+        dropEnabled = false;
+
+        let x = currentDropX;
+        const radius = FRUITS_DATA[currentFruitIndex].radius;
+
+        if (x < basket.left + radius) x = basket.left + radius;
+        if (x > basket.right - radius) x = basket.right - radius;
+
+        balls.push({
+            x: x,
+            y: 25,
+            vx: 0,
+            vy: 2,
+            radius: radius,
+            fruitIndex: currentFruitIndex
+        });
+
+        playDropSound(); // ドロップ効果音
+
+        currentFruitIndex = nextFruitIndex;
+        nextFruitIndex = Math.floor(Math.random() * 4);
+        updateNextPreview();
+
+        setTimeout(() => { dropEnabled = true; }, 350);
+    }
+
+    // タッチ＆マウスイベントリスナー
+    canvas.addEventListener('touchstart', handlePointerStart, { passive: true });
+    canvas.addEventListener('touchmove', handlePointerMove, { passive: true });
+    canvas.addEventListener('touchend', handlePointerEnd);
+
+    canvas.addEventListener('mousedown', handlePointerStart);
+    canvas.addEventListener('mousemove', handlePointerMove);
+    canvas.addEventListener('mouseup', handlePointerEnd);
+
+    // --- 4. 進化の輪 モーダル表示ロジック ---
+    function renderModalEvoGrid() {
+        const grid = document.getElementById('modal-evo-grid');
+        grid.innerHTML = '';
+
+        FRUITS_DATA.forEach((data, i) => {
+            const item = document.createElement('div');
+            item.className = 'evo-grid-item';
+
+            const evoCanvas = document.createElement('canvas');
+            evoCanvas.className = 'evo-grid-canvas';
+            evoCanvas.width = 36;
+            evoCanvas.height = 36;
+            const eCtx = evoCanvas.getContext('2d');
+
+            eCtx.save();
+            eCtx.beginPath();
+            eCtx.arc(18, 18, 17, 0, Math.PI * 2);
+            eCtx.clip();
+
+            if (loadedImages[i] && loadedImages[i].complete && loadedImages[i].naturalWidth > 0) {
+                const size = 36 * data.zoom;
+                eCtx.drawImage(loadedImages[i], 18 - size/2, 18 - size/2 - (36 * data.offsetY), size, size);
+            } else {
+                eCtx.fillStyle = data.color;
+                eCtx.fill();
+            }
+            eCtx.restore();
+
+            const text = document.createElement('span');
+            text.className = 'evo-level-text';
+            text.innerText = 'Lv.' + (i + 1);
+
+            item.appendChild(evoCanvas);
+            item.appendChild(text);
+            grid.appendChild(item);
+        });
+    }
+
+    document.getElementById('open-evo-modal').addEventListener('click', () => {
+        renderModalEvoGrid();
+        document.getElementById('evo-modal').classList.remove('hidden');
+    });
+
+    document.getElementById('close-evo-modal').addEventListener('click', () => {
+        document.getElementById('evo-modal').classList.add('hidden');
+    });
+
+    function triggerGameOver() {
+        isPlaying = false;
+        document.getElementById('final-score').innerText = currentScore;
+        document.getElementById('gameover-screen').classList.remove('hidden');
+    }
+
+    document.getElementById('start-btn').addEventListener('click', initGame);
+    document.getElementById('restart-btn').addEventListener('click', initGame);
+</script>
+
+</body>
+</html>
